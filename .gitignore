@@ -5,6 +5,3 @@ dist/
 /.claude
 /example
 
-
-# Local app config (template ships app.config.example.json)
-app.config.json
