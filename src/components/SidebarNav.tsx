@@ -72,10 +72,21 @@ function SidebarSection({
   )
 }
 
-export default function SidebarNav({ title, nodes, basePath, currentPath, lang }: Props) {
+export default function SidebarNav({ title, nodes, basePath, currentPath: initialPath, lang }: Props) {
   const [isOpen, setIsOpen] = useState(false)
-  const prevPathRef = useRef(currentPath)
+  const [currentPath, setCurrentPath] = useState(initialPath)
+  const prevPathRef = useRef(initialPath)
   const justToggledRef = useRef(false)
+
+  useEffect(() => {
+    const updatePath = () => {
+      const path = window.location.pathname.replace(/\/$/, "") || "/"
+      setCurrentPath(path)
+    }
+    updatePath()
+    document.addEventListener("astro:page-load", updatePath)
+    return () => document.removeEventListener("astro:page-load", updatePath)
+  }, [])
 
   useEffect(() => {
     window.dispatchEvent(
