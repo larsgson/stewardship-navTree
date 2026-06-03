@@ -2,13 +2,13 @@
 import BaseLayout from "../../layouts/BaseLayout.astro"
 import PageNavigationIsland from "../../components/PageNavigationIsland"
 import V2NavigationIsland from "../../components/V2NavigationIsland"
-import { discoverBooks, loadBookStructure, loadLocaleData, loadMarkdownContent, discoverLocales, isV1Book } from "../../lib/book-loader"
+import { discoverBooks, loadBookStructure, loadLocaleData, loadMarkdownContent, discoverLocales, isV1Book, ROOT_BOOK_ID, bookBasePath } from "../../lib/book-loader"
 import { isV2Book, loadV2BookData } from "../../lib/v2-loader"
 import { parseMarkdownIntoSections, extractSectionToc } from "../../lib/markdown-parser"
 import type { SectionTocEntry } from "../../lib/markdown-parser"
 
 export function getStaticPaths() {
-  const bookIds = discoverBooks()
+  const bookIds = discoverBooks().filter((id) => id !== ROOT_BOOK_ID)
   const paths: any[] = []
 
   for (const id of bookIds) {
@@ -81,7 +81,7 @@ if (props.format === "v1") {
     ) : (
       <V2NavigationIsland
         client:load
-        bookId={props.bookId}
+        basePath={bookBasePath(props.bookId)}
         bookTitle={pageTitle}
         nodes={props.v2BookData.roots}
         imageConfig={props.v2BookData.imageConfig}

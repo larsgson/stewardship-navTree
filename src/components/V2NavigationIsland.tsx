@@ -4,6 +4,7 @@ import { resolveImageUrl } from "../lib/image-utils"
 
 interface Props {
   bookId: string
+  basePath: string
   bookTitle: string
   nodes: V2TreeNode[]
   imageConfig: ImageConfig | null
@@ -15,19 +16,19 @@ function getNodeTitle(node: V2TreeNode, lang: string): string {
 }
 
 function TreeNodeCard({
-  bookId,
+  basePath,
   node,
   imageConfig,
   lang,
 }: {
-  bookId: string
+  basePath: string
   node: V2TreeNode
   imageConfig: ImageConfig | null
   lang: string
 }) {
   const title = getNodeTitle(node, lang)
   const thumbnail = node.meta.thumbnail
-  const href = `/${bookId}/${node.folderPath}`
+  const href = `${basePath}/${node.folderPath}`
 
   return (
     <a href={href} className="chapter-card">
@@ -55,13 +56,13 @@ function TreeNodeCard({
 }
 
 function RecursiveTree({
-  bookId,
+  basePath,
   nodes,
   imageConfig,
   lang,
   depth,
 }: {
-  bookId: string
+  basePath: string
   nodes: V2TreeNode[]
   imageConfig: ImageConfig | null
   lang: string
@@ -80,7 +81,7 @@ function RecursiveTree({
         {nodes.map((node) => (
           <TreeNodeCard
             key={node.folderPath}
-            bookId={bookId}
+            basePath={basePath}
             node={node}
             imageConfig={imageConfig}
             lang={lang}
@@ -101,7 +102,7 @@ function RecursiveTree({
           return (
             <a
               key={node.folderPath}
-              href={`/${bookId}/${node.folderPath}`}
+              href={`${basePath}/${node.folderPath}`}
               className="block px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               {title}
@@ -121,14 +122,14 @@ function RecursiveTree({
               <div className="accordion-body-inner">
                 {node.hasContent && (
                   <a
-                    href={`/${bookId}/${node.folderPath}`}
+                    href={`${basePath}/${node.folderPath}`}
                     className="block px-3 py-2 mb-2 rounded bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
                   >
                     {title}
                   </a>
                 )}
                 <RecursiveTree
-                  bookId={bookId}
+                  basePath={basePath}
                   nodes={node.children}
                   imageConfig={imageConfig}
                   lang={lang}
@@ -144,7 +145,7 @@ function RecursiveTree({
 }
 
 export default function V2NavigationIsland({
-  bookId,
+  basePath,
   bookTitle,
   nodes,
   imageConfig,
@@ -156,9 +157,11 @@ export default function V2NavigationIsland({
   return (
     <div className="chapter-picker">
       <div className="flex items-center gap-3 mb-4">
-        <a href="/" className="text-lg font-bold" style={{ color: "var(--text)" }}>
-          &larr;
-        </a>
+        {basePath && (
+          <a href="/" className="text-lg font-bold" style={{ color: "var(--text)" }}>
+            &larr;
+          </a>
+        )}
         <h1 className="text-xl font-bold">{bookTitle}</h1>
       </div>
 
@@ -167,7 +170,7 @@ export default function V2NavigationIsland({
           {displayNodes.map((node) => (
             <TreeNodeCard
               key={node.folderPath}
-              bookId={bookId}
+              basePath={basePath}
               node={node}
               imageConfig={imageConfig}
               lang={lang}
@@ -176,7 +179,7 @@ export default function V2NavigationIsland({
         </div>
       ) : (
         <RecursiveTree
-          bookId={bookId}
+          basePath={basePath}
           nodes={displayNodes}
           imageConfig={imageConfig}
           lang={lang}

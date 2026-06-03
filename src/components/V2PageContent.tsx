@@ -1,13 +1,15 @@
 import PageSection from "./PageSection"
+import MarkdownContent from "./MarkdownContent"
 import type { ParsedMarkdown, ImageConfig, V2TreeNode } from "../lib/types"
 
 interface Props {
-  bookId: string
+  basePath: string
   folderPath: string
   title: string
   parsed: ParsedMarkdown
+  markdown?: string
   imageConfig: ImageConfig | null
-  children: V2TreeNode[]
+  childNodes: V2TreeNode[]
   prevUrl: string | null
   nextUrl: string | null
   lang: string
@@ -18,19 +20,20 @@ function getNodeTitle(node: V2TreeNode, lang: string): string {
 }
 
 export default function V2PageContent({
-  bookId,
+  basePath,
   folderPath,
   title,
   parsed,
+  markdown,
   imageConfig,
-  children,
+  childNodes,
   prevUrl,
   nextUrl,
   lang,
 }: Props) {
   const parentPath = folderPath.includes("/")
-    ? `/${bookId}/${folderPath.substring(0, folderPath.lastIndexOf("/"))}`
-    : `/${bookId}/`
+    ? `${basePath}/${folderPath.substring(0, folderPath.lastIndexOf("/"))}`
+    : `${basePath}/`
 
   return (
     <div>
@@ -45,7 +48,9 @@ export default function V2PageContent({
         <h1 className="text-xl font-bold flex-1">{title}</h1>
       </div>
 
-      {parsed.sections.length > 0 && (
+      {markdown ? (
+        <MarkdownContent markdown={markdown} />
+      ) : parsed.sections.length > 0 ? (
         <div className="space-y-4">
           {parsed.sections.map((section, index) => (
             <PageSection
@@ -58,15 +63,15 @@ export default function V2PageContent({
             />
           ))}
         </div>
-      )}
+      ) : null}
 
-      {children.length > 0 && (
+      {childNodes.length > 0 && (
         <div className="mt-6">
           <div className="chapter-grid">
-            {children.map((child) => (
+            {childNodes.map((child) => (
               <a
                 key={child.folderPath}
-                href={`/${bookId}/${child.folderPath}`}
+                href={`${basePath}/${child.folderPath}`}
                 className="chapter-card"
               >
                 <div

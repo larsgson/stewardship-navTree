@@ -1,0 +1,105 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro"
+import V2PageContent from "../components/V2PageContent"
+import SidebarNav from "../components/SidebarNav"
+import MenuButton from "../components/MenuButton.astro"
+import { discoverBooks, ROOT_BOOK_ID } from "../lib/book-loader"
+import { loadAppConfig } from "../lib/app-config"
+import {
+  isV2Book,
+  loadV2BookData,
+  loadV2Content,
+  loadV2Markdown,
+  contentBlocksToSections,
+  buildNavOrder,
+  buildWikiLinkMap,
+  resolveWikiLinks,
+  resolveV2NodeTitle,
+  resolveV2Redirect,
+  stripFrontmatter,
+} from "../lib/v2-loader"
+
+export function getStaticPaths() {
+  const bookIds = discoverBooks()
+  if (!bookIds.includes(ROOT_BOOK_ID)) return []
+  if (!isV2Book(ROOT_BOOK_ID)) return []
+
+  const bookData = loadV2BookData(ROOT_BOOK_ID)
+  if (!bookData) return []
+
+  const linkMap = buildWikiLinkMap(bookData.roots, "")
+  const navOrder = buildNavOrder(bookData.roots)
+  const lang = bookData.config.defaultLanguage
+  const paths: any[] = []
+
+  for (let i = 0; i < navOrder.length; i++) {
+    const node = navOrder[i]
+    const resolved = resolveV2Redirect(ROOT_BOOK_ID, node, bookData.roots)
+    const title = resolveV2NodeTitle(node, lang)
+
+    const contentBlocks = loadV2Content(ROOT_BOOK_ID, resolved.folderPath)
+    const rawMarkdown = contentBlocks ? null : loadV2Markdown(ROOT_BOOK_ID, resolved.folderPath)
+
+    let parsed = { title, sections: [] as any[] }
+    let markdown: string | undefined
+    if (contentBlocks) {
+      parsed = contentBlocksToSections(contentBlocks, title)
+    } else if (rawMarkdown) {
+      markdown = resolveWikiLinks(stripFrontmatter(rawMarkdown), linkMap)
+    }
+
+    const prevNode = i > 0 ? navOrder[i - 1] : null
+    const nextNode = i < navOrder.length - 1 ? navOrder[i + 1] : null
+
+    paths.push({
+      params: { path: node.folderPath },
+      props: {
+        folderPath: node.folderPath,
+        title,
+        parsed,
+        markdown,
+        imageConfig: bookData.imageConfig,
+        childNodes: node.children,
+        navRoots: bookData.roots,
+        prevUrl: prevNode ? `/${prevNode.folderPath}` : null,
+        nextUrl: nextNode ? `/${nextNode.folderPath}` : null,
+        lang,
+      },
+    })
+  }
+
+  return paths
+}
+
+const appConfig = loadAppConfig()
+const props = Astro.props
+const currentPath = Astro.url.pathname
+---
+
+<BaseLayout title={props.title}>
+  <MenuButton slot="menu-button" />
+  <SidebarNav
+    slot="sidebar"
+    client:load
+    title={appConfig.appName}
+    nodes={props.navRoots}
+    basePath=""
+    currentPath={currentPath}
+    lang={props.lang}
+    transition:persist="sidebar"
+  />
+
+  <V2PageContent
+    client:load
+    basePath=""
+    folderPath={props.folderPath}
+    title={props.title}
+    parsed={props.parsed}
+    markdown={props.markdown}
+    imageConfig={props.imageConfig}
+    childNodes={props.childNodes}
+    prevUrl={props.prevUrl}
+    nextUrl={props.nextUrl}
+    lang={props.lang}
+  />
+</BaseLayout>

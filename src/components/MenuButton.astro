@@ -1,0 +1,43 @@
+---
+---
+
+<div class="menu-button-container">
+    <button class="menu-button" id="menu-toggle" aria-label="Toggle Menu">
+        ☰
+    </button>
+</div>
+
+<script>
+    function attachMenuButtonListener() {
+        const menuBtn = document.getElementById("menu-toggle");
+        if (menuBtn && !menuBtn.dataset.listenerAttached) {
+            menuBtn.dataset.listenerAttached = "true";
+            menuBtn.addEventListener(
+                "click",
+                (e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    window.dispatchEvent(new CustomEvent("toggle-sidebar"));
+                },
+                { capture: true },
+            );
+        }
+    }
+
+    function updateMenuButtonVisibility(isOpen) {
+        const container = document.querySelector(".menu-button-container");
+        if (container) {
+            container.style.visibility = isOpen ? "hidden" : "visible";
+        }
+    }
+
+    attachMenuButtonListener();
+
+    if (!window.__menuButtonPageLoadRegistered) {
+        window.__menuButtonPageLoadRegistered = true;
+        document.addEventListener("astro:page-load", attachMenuButtonListener);
+        window.addEventListener("sidebar-state-changed", (e) => {
+            updateMenuButtonVisibility(e.detail.isOpen);
+        });
+    }
+</script>

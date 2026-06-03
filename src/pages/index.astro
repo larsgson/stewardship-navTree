@@ -1,14 +1,24 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro"
 import BookGridIsland from "../components/BookGridIsland"
-import { discoverBooks, loadBookStructure, loadLocaleData, discoverLocales, isV1Book } from "../lib/book-loader"
+import SidebarNav from "../components/SidebarNav"
+import MenuButton from "../components/MenuButton.astro"
+import { discoverBooks, loadBookStructure, loadLocaleData, discoverLocales, isV1Book, ROOT_BOOK_ID, bookBasePath } from "../lib/book-loader"
 import { isV2Book, loadV2BookData } from "../lib/v2-loader"
-import { resolveImageUrl } from "../lib/image-utils"
 import { loadAppConfig } from "../lib/app-config"
 
 const appConfig = loadAppConfig()
 const bookIds = discoverBooks()
-const bookList = bookIds.map((id) => {
+const currentPath = Astro.url.pathname
+
+const isRootBook = bookIds.length === 1 && bookIds[0] === ROOT_BOOK_ID
+
+let rootBookData: ReturnType<typeof loadV2BookData> = null
+if (isRootBook && isV2Book(ROOT_BOOK_ID)) {
+  rootBookData = loadV2BookData(ROOT_BOOK_ID)
+}
+
+const bookList = isRootBook ? [] : bookIds.map((id) => {
   if (isV1Book(id)) {
     const structure = loadBookStructure(id)
     if (!structure) return null
@@ -48,8 +58,29 @@ const bookList = bookIds.map((id) => {
 ---
 
 <BaseLayout title={appConfig.appName}>
-  <div class="max-w-sm mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6">{appConfig.appName}</h1>
-    <BookGridIsland client:load books={bookList} />
-  </div>
+  {rootBookData && <MenuButton slot="menu-button" />}
+  {rootBookData && (
+    <SidebarNav
+      slot="sidebar"
+      client:load
+      title={appConfig.appName}
+      nodes={rootBookData.roots}
+      basePath=""
+      currentPath={currentPath}
+      lang={rootBookData.config.defaultLanguage}
+      transition:persist="sidebar"
+    />
+  )}
+
+  {rootBookData ? (
+    <Fragment>
+      <h1 class="text-2xl font-bold mb-6">{appConfig.appName}</h1>
+      <p class="text-gray-500">Select a topic from the sidebar to get started.</p>
+    </Fragment>
+  ) : (
+    <Fragment>
+      <h1 class="text-2xl font-bold mb-6">{appConfig.appName}</h1>
+      <BookGridIsland client:load books={bookList} />
+    </Fragment>
+  )}
 </BaseLayout>

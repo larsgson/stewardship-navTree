@@ -12,20 +12,49 @@ import type {
 } from "./types"
 
 const DATA_DIR = path.join(process.cwd(), "src/data")
+export const ROOT_BOOK_ID = "_root"
+
+export function bookBasePath(bookId: string): string {
+  return bookId === ROOT_BOOK_ID ? "" : `/${bookId}`
+}
 
 export function discoverBooks(): string[] {
   if (!fs.existsSync(DATA_DIR)) return []
-  return fs.readdirSync(DATA_DIR).filter((d) => {
+
+  if (fs.existsSync(path.join(DATA_DIR, "config.toml")) ||
+      fs.existsSync(path.join(DATA_DIR, "template", "index.toml"))) {
+    return [ROOT_BOOK_ID]
+  }
+
+  const books: string[] = []
+  for (const d of fs.readdirSync(DATA_DIR)) {
     const fullPath = path.join(DATA_DIR, d)
-    if (!fs.statSync(fullPath).isDirectory()) return false
-    if (fs.existsSync(path.join(fullPath, "template", "index.toml"))) return true
-    if (fs.existsSync(path.join(fullPath, "config.toml"))) return true
-    return false
-  })
+    if (!fs.statSync(fullPath).isDirectory()) continue
+
+    if (fs.existsSync(path.join(fullPath, "template", "index.toml")) ||
+        fs.existsSync(path.join(fullPath, "config.toml"))) {
+      books.push(d)
+      continue
+    }
+
+    for (const sub of fs.readdirSync(fullPath)) {
+      const subPath = path.join(fullPath, sub)
+      if (!fs.statSync(subPath).isDirectory()) continue
+      if (fs.existsSync(path.join(subPath, "template", "index.toml")) ||
+          fs.existsSync(path.join(subPath, "config.toml"))) {
+        books.push(`${d}/${sub}`)
+      }
+    }
+  }
+  return books
+}
+
+export function resolveBookDir(bookId: string): string {
+  return bookId === ROOT_BOOK_ID ? DATA_DIR : path.join(DATA_DIR, bookId)
 }
 
 export function isV1Book(bookId: string): boolean {
-  return fs.existsSync(path.join(DATA_DIR, bookId, "template", "index.toml"))
+  return fs.existsSync(path.join(resolveBookDir(bookId), "template", "index.toml"))
 }
 
 export function loadBookStructure(bookId: string): BookStructure | null {

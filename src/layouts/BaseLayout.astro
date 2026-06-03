@@ -19,13 +19,16 @@ const { title = appConfig.appName } = Astro.props
     <title>{title}</title>
     <ViewTransitions />
   </head>
-  <body class="min-h-screen flex flex-col">
-    <header class="bg-primary text-white h-14 flex items-center px-4 sticky top-0 z-50">
-      <a href="/" class="text-lg font-semibold hover:opacity-90">{appConfig.appName}</a>
-    </header>
-    <main class="flex-1">
-      <slot />
-    </main>
+  <body class="min-h-screen">
+    <slot name="menu-button" />
+    <div class="app">
+      <slot name="sidebar" />
+      <main class="main-content" transition:animate="fade">
+        <div class="page-content">
+          <slot />
+        </div>
+      </main>
+    </div>
 
     <!-- Focus panel -->
     <div class="focus-panel-backdrop" id="focus-backdrop" style="display:none" transition:persist></div>

@@ -11,15 +11,14 @@ import type {
   ParsedMarkdown,
   Section,
 } from "./types"
-
-const DATA_DIR = path.join(process.cwd(), "src/data")
+import { resolveBookDir } from "./book-loader"
 
 export function isV2Book(bookId: string): boolean {
-  return fs.existsSync(path.join(DATA_DIR, bookId, "config.toml"))
+  return fs.existsSync(path.join(resolveBookDir(bookId), "config.toml"))
 }
 
 export function loadV2Config(bookId: string): V2Config | null {
-  const configPath = path.join(DATA_DIR, bookId, "config.toml")
+  const configPath = path.join(resolveBookDir(bookId), "config.toml")
   if (!fs.existsSync(configPath)) return null
 
   try {
@@ -72,7 +71,7 @@ function scanTree(baseDir: string, relativePath: string = ""): V2TreeNode[] {
 
   const entries = fs.readdirSync(dir).filter((name) => {
     const full = path.join(dir, name)
-    return fs.statSync(full).isDirectory() && /^\d{2,}$/.test(name)
+    return fs.statSync(full).isDirectory() && /^\d+$/.test(name)
   }).sort()
 
   return entries.map((name) => {
@@ -98,7 +97,7 @@ export function loadV2BookData(bookId: string): V2BookData | null {
   const config = loadV2Config(bookId)
   if (!config) return null
 
-  const bookDir = path.join(DATA_DIR, bookId)
+  const bookDir = path.join(resolveBookDir(bookId))
   const roots = scanTree(bookDir)
 
   let imageConfig: ImageConfig | null = null
@@ -110,7 +109,7 @@ export function loadV2BookData(bookId: string): V2BookData | null {
 }
 
 export function loadV2Content(bookId: string, folderPath: string): ContentBlock[] | null {
-  const bookDir = path.join(DATA_DIR, bookId)
+  const bookDir = path.join(resolveBookDir(bookId))
   const nodeDir = path.join(bookDir, folderPath)
 
   const jsonPath = path.join(nodeDir, "content.json")
@@ -127,9 +126,63 @@ export function loadV2Content(bookId: string, folderPath: string): ContentBlock[
 }
 
 export function loadV2Markdown(bookId: string, folderPath: string): string | null {
-  const mdPath = path.join(DATA_DIR, bookId, folderPath, "content.md")
+  const mdPath = path.join(resolveBookDir(bookId), folderPath, "content.md")
   if (!fs.existsSync(mdPath)) return null
   return fs.readFileSync(mdPath, "utf-8")
+}
+
+export function buildWikiLinkMap(
+  roots: V2TreeNode[],
+  basePath: string,
+): Record<string, string> {
+  const map: Record<string, string> = {}
+  function walk(node: V2TreeNode) {
+    const slug = node.meta.contentId
+    if (slug && !node.meta.redirectTo) {
+      map[slug] = `${basePath}/${node.folderPath}`
+    }
+    node.children.forEach(walk)
+  }
+  roots.forEach(walk)
+  for (const node of flattenNodes(roots)) {
+    const slug = node.meta.contentId
+    if (slug && !(slug in map)) {
+      map[slug] = `${basePath}/${node.folderPath}`
+    }
+  }
+  return map
+}
+
+function flattenNodes(roots: V2TreeNode[]): V2TreeNode[] {
+  const result: V2TreeNode[] = []
+  function walk(node: V2TreeNode) {
+    result.push(node)
+    node.children.forEach(walk)
+  }
+  roots.forEach(walk)
+  return result
+}
+
+export function resolveWikiLinks(
+  md: string,
+  linkMap: Record<string, string>,
+): string {
+  return md.replace(/\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g, (_match, target: string, label?: string) => {
+    const slug = target.includes("/") ? target.split("/").pop()! : target
+    const url = linkMap[slug]
+    const displayText = label || slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+    if (url) {
+      return `[${displayText}](${url})`
+    }
+    return displayText
+  })
+}
+
+export function stripFrontmatter(md: string): string {
+  if (!md.startsWith("---")) return md
+  const end = md.indexOf("\n---", 3)
+  if (end === -1) return md
+  return md.slice(end + 4).trimStart()
 }
 
 export function resolveV2NodeTitle(

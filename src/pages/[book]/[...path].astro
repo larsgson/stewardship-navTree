@@ -12,6 +12,8 @@ import {
   loadCombinedTiming,
   discoverLocales,
   isV1Book,
+  ROOT_BOOK_ID,
+  bookBasePath,
 } from "../../lib/book-loader"
 import {
   isV2Book,
@@ -20,14 +22,17 @@ import {
   loadV2Markdown,
   contentBlocksToSections,
   buildNavOrder,
+  buildWikiLinkMap,
+  resolveWikiLinks,
   findV2Node,
   resolveV2NodeTitle,
   resolveV2Redirect,
+  stripFrontmatter,
 } from "../../lib/v2-loader"
 import { parseMarkdownIntoSections } from "../../lib/markdown-parser"
 
 export function getStaticPaths() {
-  const bookIds = discoverBooks()
+  const bookIds = discoverBooks().filter((id) => id !== ROOT_BOOK_ID)
   const paths: any[] = []
 
   for (const id of bookIds) {
@@ -100,23 +105,23 @@ export function getStaticPaths() {
 
       const navOrder = buildNavOrder(bookData.roots)
       const lang = bookData.config.defaultLanguage
+      const base = bookBasePath(id)
+      const linkMap = buildWikiLinkMap(bookData.roots, base)
 
       for (let i = 0; i < navOrder.length; i++) {
         const node = navOrder[i]
         const resolved = resolveV2Redirect(id, node, bookData.roots)
         const title = resolveV2NodeTitle(node, lang)
 
-        let contentBlocks = loadV2Content(id, resolved.folderPath)
-        let markdownContent = contentBlocks ? null : loadV2Markdown(id, resolved.folderPath)
+        const contentBlocks = loadV2Content(id, resolved.folderPath)
+        const rawMarkdown = contentBlocks ? null : loadV2Markdown(id, resolved.folderPath)
 
-        let parsed
+        let parsed = { title, sections: [] as any[] }
+        let markdown: string | undefined
         if (contentBlocks) {
           parsed = contentBlocksToSections(contentBlocks, title)
-        } else if (markdownContent) {
-          parsed = parseMarkdownIntoSections(markdownContent, null)
-          parsed.title = parsed.title || title
-        } else {
-          parsed = { title, sections: [] }
+        } else if (rawMarkdown) {
+          markdown = resolveWikiLinks(stripFrontmatter(rawMarkdown), linkMap)
         }
 
         const prevNode = i > 0 ? navOrder[i - 1] : null
@@ -130,10 +135,11 @@ export function getStaticPaths() {
             folderPath: node.folderPath,
             title,
             parsed,
+            markdown,
             imageConfig: bookData.imageConfig,
-            children: node.children,
-            prevUrl: prevNode ? `/${id}/${prevNode.folderPath}` : null,
-            nextUrl: nextNode ? `/${id}/${nextNode.folderPath}` : null,
+            childNodes: node.children,
+            prevUrl: prevNode ? `${base}/${prevNode.folderPath}` : null,
+            nextUrl: nextNode ? `${base}/${nextNode.folderPath}` : null,
             lang,
           },
         })
@@ -185,12 +191,13 @@ const pageTitle = props.format === "v1"
     <div class="max-w-sm mx-auto p-4">
       <V2PageContent
         client:load
-        bookId={props.bookId}
+        basePath={bookBasePath(props.bookId)}
         folderPath={props.folderPath}
         title={props.title}
         parsed={props.parsed}
+        markdown={props.markdown}
         imageConfig={props.imageConfig}
-        children={props.children}
+        childNodes={props.childNodes}
         prevUrl={props.prevUrl}
         nextUrl={props.nextUrl}
         lang={props.lang}
