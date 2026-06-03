@@ -1,0 +1,55 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro"
+import BookGridIsland from "../components/BookGridIsland"
+import { discoverBooks, loadBookStructure, loadLocaleData, discoverLocales, isV1Book } from "../lib/book-loader"
+import { isV2Book, loadV2BookData } from "../lib/v2-loader"
+import { resolveImageUrl } from "../lib/image-utils"
+import { loadAppConfig } from "../lib/app-config"
+
+const appConfig = loadAppConfig()
+const bookIds = discoverBooks()
+const bookList = bookIds.map((id) => {
+  if (isV1Book(id)) {
+    const structure = loadBookStructure(id)
+    if (!structure) return null
+    const locales = discoverLocales(id)
+    const locale = locales.length > 0 ? loadLocaleData(id, locales[0]) : null
+    const pageCount = structure.categories.reduce((sum, c) => sum + c.stories.length, 0)
+    return {
+      id,
+      title: locale?.bookTitle || id,
+      description: locale?.categories?.[structure.categories[0]?.id]?.description || "",
+      coverImage: structure.coverImage,
+      categoryCount: structure.categories.length,
+      pageCount,
+      imageConfig: structure.imageConfig,
+    }
+  }
+
+  if (isV2Book(id)) {
+    const bookData = loadV2BookData(id)
+    if (!bookData) return null
+    function countNodes(nodes: typeof bookData.roots): number {
+      return nodes.reduce((sum, n) => sum + 1 + countNodes(n.children), 0)
+    }
+    return {
+      id,
+      title: bookData.config.projectName,
+      description: "",
+      coverImage: "",
+      categoryCount: bookData.roots.length,
+      pageCount: countNodes(bookData.roots),
+      imageConfig: bookData.imageConfig,
+    }
+  }
+
+  return null
+}).filter(Boolean) as any[]
+---
+
+<BaseLayout title={appConfig.appName}>
+  <div class="max-w-sm mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-6">{appConfig.appName}</h1>
+    <BookGridIsland client:load books={bookList} />
+  </div>
+</BaseLayout>

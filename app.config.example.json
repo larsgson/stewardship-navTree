@@ -1,0 +1,8 @@
+{
+  "appName": "My Book Reader",
+  "defaultLanguage": "eng",
+  "branding": {
+    "subtitle": "A multimedia book reader",
+    "metaDescription": "My Book Reader - A multimedia book reader with audio synchronization"
+  }
+}

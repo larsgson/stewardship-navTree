@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro"
+import PageNavigationIsland from "../../components/PageNavigationIsland"
+import V2NavigationIsland from "../../components/V2NavigationIsland"
+import { discoverBooks, loadBookStructure, loadLocaleData, loadMarkdownContent, discoverLocales, isV1Book } from "../../lib/book-loader"
+import { isV2Book, loadV2BookData } from "../../lib/v2-loader"
+import { parseMarkdownIntoSections, extractSectionToc } from "../../lib/markdown-parser"
+import type { SectionTocEntry } from "../../lib/markdown-parser"
+
+export function getStaticPaths() {
+  const bookIds = discoverBooks()
+  const paths: any[] = []
+
+  for (const id of bookIds) {
+    if (isV1Book(id)) {
+      const structure = loadBookStructure(id)!
+      const locales = discoverLocales(id)
+      const locale = locales.length > 0 ? loadLocaleData(id, locales[0]) : null
+
+      let sectionToc: SectionTocEntry[] = []
+      const isSingleStory = structure.categories.length === 1 && structure.categories[0].stories.length === 1
+      if (isSingleStory) {
+        const cat = structure.categories[0]
+        const story = cat.stories[0]
+        const md = loadMarkdownContent(id, cat.id, story.id)
+        if (md && locale) {
+          const parsed = parseMarkdownIntoSections(md, locale, cat.id)
+          sectionToc = extractSectionToc(parsed)
+        }
+      }
+
+      paths.push({
+        params: { book: id },
+        props: {
+          format: "v1" as const,
+          bookId: id,
+          structure,
+          localeData: locale,
+          sectionToc,
+        },
+      })
+    } else if (isV2Book(id)) {
+      const bookData = loadV2BookData(id)
+      if (!bookData) continue
+
+      paths.push({
+        params: { book: id },
+        props: {
+          format: "v2" as const,
+          bookId: id,
+          v2BookData: bookData,
+        },
+      })
+    }
+  }
+
+  return paths
+}
+
+const props = Astro.props
+
+let pageTitle = ""
+if (props.format === "v1") {
+  pageTitle = props.localeData?.bookTitle || props.bookId
+} else {
+  pageTitle = props.v2BookData.config.projectName
+}
+---
+
+<BaseLayout title={pageTitle}>
+  <div class="max-w-sm mx-auto p-4">
+    {props.format === "v1" ? (
+      <PageNavigationIsland
+        client:load
+        bookId={props.bookId}
+        structure={props.structure}
+        localeData={props.localeData}
+        imageConfig={props.structure.imageConfig}
+        sectionToc={props.sectionToc}
+      />
+    ) : (
+      <V2NavigationIsland
+        client:load
+        bookId={props.bookId}
+        bookTitle={pageTitle}
+        nodes={props.v2BookData.roots}
+        imageConfig={props.v2BookData.imageConfig}
+        lang={props.v2BookData.config.defaultLanguage}
+      />
+    )}
+  </div>
+</BaseLayout>

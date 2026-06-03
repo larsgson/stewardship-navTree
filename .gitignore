@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+/.claude
+/example
+
+# Content data — populated per project, not part of the template
+src/data/
+
+# Public assets — populated per project, not part of the template
+public/images/
+public/audio/
+
+# Local app config (template ships app.config.example.json)
+app.config.json
